@@ -16,6 +16,9 @@ class GameScene: SKScene {
 	
 	var scrollSpeed:CGFloat = 5.0
 	
+	let grvitySpeed:CGFloat = 1.5
+	
+	
 	var lastUpdateTime: TimeInterval?
 	
 	let skater = Skater (imageNamed: "skater")
@@ -127,5 +130,11 @@ class GameScene: SKScene {
 		
     }
 	
+	@objc func handleTap(tapGesture: UITapGestureRecognizer){
+		if skater.isOnGround {
+			skater.velocity = CGPoint(x: 0.0, y: skater.jumpSpead)
+			skater.isOnGround = false
+		}
+	}
 	
 }
