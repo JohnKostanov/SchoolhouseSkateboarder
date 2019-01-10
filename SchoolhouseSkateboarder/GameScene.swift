@@ -18,8 +18,19 @@ import GameplayKit
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
 	
+	enum BrickLevel: CGFloat {
+		case low = 0.0
+		case high = 100.0
+	}
+	
 	var bricks = [SKSpriteNode]()
+	
+	var gems = [SKSpriteNode]()
+	
 	var bricksSize = CGSize.zero
+	
+	var brickLevel = BrickLevel.low
+	
 	
 	var scrollSpeed:CGFloat = 5.0
 	let startingScrollSpeed:CGFloat = 5.0
@@ -73,6 +84,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		resetSkater()
 		
 		scrollSpeed = startingScrollSpeed
+		brickLevel = .low
 		lastUpdateTime = nil
 		
 		for brick in bricks {
@@ -105,6 +117,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		return brick
 	}
 	
+	func spawnGems(atPosition position: CGPoint) {
+		let gem = SKSpriteNode (imageNamed: "gem")
+		gem.position = position
+		gem.zPosition = 9
+		addChild(gem)
+		gem.physicsBody = SKPhysicsBody(rectangleOf: gem.size, center: gem.centerRect.origin)
+		gem.physicsBody?.categoryBitMask = PhysicsCategory.gem
+		gem.physicsBody?.affectedByGravity = false
+		
+		gems.append(gem)
+		
+	}
+	
+	func removeGems(_ gem:SKSpriteNode) {
+		gem.removeFromParent()
+		
+		if let gemIndex = gems.index(of: gem) {
+			gems.remove(at: gemIndex)
+		}
+	}
+	
 	func updateBricks(withScrollAmount currentScrollAmount: CGFloat) {
 		var farthestRightBrickX:CGFloat = 0.0
 		
@@ -131,7 +164,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		
 		while farthestRightBrickX < frame.width {
 			var brickX = farthestRightBrickX + bricksSize.width + 1.0
-			let brickY = bricksSize.height / 2.0
+			let brickY = (bricksSize.height / 2.0) + brickLevel.rawValue
 			
 			let randomNumber = arc4random_uniform(99)
 			
@@ -139,7 +172,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 				let gap = 20.0 * scrollSpeed
 				brickX += gap
 				
+				let randomGemYAmmount = CGFloat(arc4random_uniform(150))
+				let newGemY = brickY + skater.size.height + randomGemYAmmount
+				let newGemX = brickX - gap / 2.0
+				
+				spawnGems(atPosition: CGPoint(x: newGemX, y: newGemY))
+				
 			}
+			else if randomNumber < 10{
+				if brickLevel == .high{
+					brickLevel = .low
+				}
+				else if brickLevel == .low{
+					brickLevel = .high
+				}
+				
+			}
+			
 			
 			let newBrick = spawnBricks(atPosition: CGPoint(x: brickX, y: brickY))
 			farthestRightBrickX = newBrick.position.x
@@ -184,6 +233,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		}
 	
     override func update(_ currentTime: TimeInterval) {
+		
+		scrollSpeed += 0.01
 		
 		var elapsedTime:TimeInterval = 0.0
 		
