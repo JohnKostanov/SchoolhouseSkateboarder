@@ -37,6 +37,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 	
 	let gravitySpeed:CGFloat = 1.5
 	
+	var score:Int = 0
+	var highScore:Int = 0
+	var lastScoreUpdateTime:TimeInterval = 0.0
 	
 	var lastUpdateTime: TimeInterval?
 	
@@ -55,6 +58,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		background.position = CGPoint (x: xMid, y: yMid)
 		addChild(background)
 		
+		setupLabels()
+		
 		skater.setupPhysicBody()
 		addChild(skater)
 		
@@ -67,7 +72,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 	
 	func resetSkater () {
-		let skaterX = frame.midX / 7.0
+		let skaterX = frame.midX / 3.0
 		let skaterY = skater.frame.height // 2.0 + 65
 		skater.position = CGPoint (x: skaterX, y: skaterY)
 		skater.zPosition = 10
@@ -79,9 +84,66 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		
 	}
 	
+	func setupLabels() {
+		
+		//score label top left side
+		let scoreTextLabel: SKLabelNode = SKLabelNode (text: "Score")
+		scoreTextLabel.position = CGPoint (x: 14.0, y: frame.size.height - 20.0)
+		scoreTextLabel.horizontalAlignmentMode = .left
+		scoreTextLabel.fontName = "courier-bold"
+		scoreTextLabel.fontSize = 14.0
+		scoreTextLabel.zPosition = 20
+		addChild(scoreTextLabel)
+		
+		//score top left side
+		let scoreLabel:SKLabelNode = SKLabelNode (text: "0")
+		scoreLabel.position = CGPoint (x: 14.0, y: frame.size.height - 40.0)
+		scoreLabel.horizontalAlignmentMode = .left
+		scoreLabel.fontName = "courier-bold"
+		scoreLabel.fontSize = 14.0
+		scoreLabel.name = "scoreLabel"
+		scoreLabel.zPosition = 20
+		addChild(scoreLabel)
+		
+		//best score label top right side
+		let highScoreLabel:SKLabelNode = SKLabelNode (text: "High score")
+		highScoreLabel.position = CGPoint (x: frame.size.width - 14.0, y: frame.size.height - 20.0)
+		highScoreLabel.horizontalAlignmentMode = .right
+		highScoreLabel.fontName = "courier-bold"
+		highScoreLabel.fontSize = 14.0
+		highScoreLabel.zPosition = 20
+		addChild(highScoreLabel)
+		
+		//best score top right side
+		let highScore:SKLabelNode = SKLabelNode (text: "0")
+		highScore.position = CGPoint(x: frame.size.width - 14.0, y: frame.size.height - 40.0)
+		highScore.horizontalAlignmentMode = .right
+		highScore.fontName = "courier-bold"
+		highScore.fontSize = 14.0
+		highScore.name = "highScoreLabel"
+		highScore.zPosition = 20
+		addChild(highScore)
+		
+	}
+	
+	func updateScoreLabelText() {
+		if let scoreLabel = childNode(withName: "scoreLabel") as?SKLabelNode {
+			scoreLabel.text = String (format: "%04d", score)
+		}
+		
+	}
+	
+	func updateHighScoreLabelText(){
+		if let highScoreLabel = childNode(withName: "highScoreLabel") as? SKLabelNode{
+			highScoreLabel.text = String(format: "%04d", highScore)
+		}
+	}
+	
 	func startGame() {
 		
 		resetSkater()
+	
+		score = 0
 		
 		scrollSpeed = startingScrollSpeed
 		brickLevel = .low
@@ -91,9 +153,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 			brick.removeFromParent()
 		}
 		bricks.removeAll(keepingCapacity: true)
+		
+		for gem in gems{
+			removeGem(gem)
+		}
 	}
 	
 	func gameOver() {
+		if score > highScore {
+			highScore = score
+			updateHighScoreLabelText()
+		}
 		startGame()
 	}
 	
@@ -130,7 +200,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		
 	}
 	
-	func removeGems(_ gem:SKSpriteNode) {
+	func removeGem (_ gem:SKSpriteNode) {
 		gem.removeFromParent()
 		
 		if let gemIndex = gems.index(of: gem) {
@@ -162,24 +232,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 			
 		}
 		
+		
+		
 		while farthestRightBrickX < frame.width {
 			var brickX = farthestRightBrickX + bricksSize.width + 1.0
 			let brickY = (bricksSize.height / 2.0) + brickLevel.rawValue
 			
 			let randomNumber = arc4random_uniform(99)
 			
-			if randomNumber < 5 {
+			if randomNumber < 2 && score > 10 {
 				let gap = 20.0 * scrollSpeed
 				brickX += gap
 				
-				let randomGemYAmmount = CGFloat(arc4random_uniform(150))
-				let newGemY = brickY + skater.size.height + randomGemYAmmount
+				let randomGemYAmount = CGFloat(arc4random_uniform(150))
+				let newGemY = brickY + skater.size.height + randomGemYAmount
 				let newGemX = brickX - gap / 2.0
 				
 				spawnGems(atPosition: CGPoint(x: newGemX, y: newGemY))
 				
 			}
-			else if randomNumber < 10{
+			else if randomNumber < 4 && score > 20{
 				if brickLevel == .high{
 					brickLevel = .low
 				}
@@ -195,6 +267,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 			
 		}
 			
+	}
+	
+	func updateGems (withScrollAmount currentScrollAmount: CGFloat){
+		for gem in gems {
+			let thisGemX = gem.position.x - currentScrollAmount
+			gem.position = CGPoint(x: thisGemX, y: gem.position.y)
+			
+			if gem.position.x < 0.0 {
+				removeGem(gem)
+			}
+			
+		}
 	}
 	
 	func updateSkater(){
@@ -232,6 +316,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
 		}
 	
+	func updateScore(withCurrentTime currentTime:TimeInterval) {
+		let elapsedTime = currentTime - lastScoreUpdateTime
+		
+		if elapsedTime > 1.0 {
+			score += Int(scrollSpeed)
+			
+			lastScoreUpdateTime = currentTime
+			
+			updateScoreLabelText()
+		}
+		
+	}
+	
     override func update(_ currentTime: TimeInterval) {
 		
 		scrollSpeed += 0.01
@@ -252,6 +349,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		updateBricks(withScrollAmount: currentScrollAmount)
 		
 		updateSkater ()
+		
+		updateGems (withScrollAmount: currentScrollAmount)
+		
+		updateScore(withCurrentTime: currentTime)
+		
     }
 	
 	@objc func handleTap(tapGesture: UITapGestureRecognizer){
@@ -266,6 +368,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 			contact.bodyB.categoryBitMask == PhysicsCategory.brick {
 			
 			skater.isOnGround = true
+		}
+		else if contact.bodyA.categoryBitMask == PhysicsCategory.skater && contact.bodyB.categoryBitMask == PhysicsCategory.gem {
+			if let gem = contact.bodyB.node as? SKSpriteNode{
+				removeGem(gem)
+				
+				score += 10
+				updateScoreLabelText()
+			}
 		}
 	}
 	
