@@ -23,6 +23,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		case high = 100.0
 	}
 	
+	var gameState = GameState.notRunning
+	
+	
+	
+	enum GameState {
+		case notRunning
+		case running
+		case paused
+	}
+	
 	var bricks = [SKSpriteNode]()
 	
 	var gems = [SKSpriteNode]()
@@ -67,7 +77,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 		let tapGesture = UITapGestureRecognizer(target: self, action: tapMethod)
 		view.addGestureRecognizer(tapGesture)
 		
-		startGame()
+		let menuBackgroundColor = UIColor.black.withAlphaComponent(0.4)
+		let menuLayer = MenuLayer(color: menuBackgroundColor, size: frame.size)
+		
+		menuLayer.anchorPoint = CGPoint(x: 0.0, y: 0.0)
+		menuLayer.position = CGPoint(x: 0.0, y: 0.0)
+		menuLayer.zPosition = 30
+		menuLayer.name = "menuLayer"
+		menuLayer.display(message: "Press to start game", score: nil)
+		addChild(menuLayer)
+		
+		
 		
         }
 	
@@ -141,6 +161,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 	
 	func startGame() {
 		
+		gameState = .running
+		
 		resetSkater()
 	
 		score = 0
@@ -160,11 +182,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 	}
 	
 	func gameOver() {
+		
+		gameState = .notRunning
+		
 		if score > highScore {
 			highScore = score
 			updateHighScoreLabelText()
 		}
-		startGame()
+		
+		let menuBackgroundColor = UIColor.black.withAlphaComponent(0.4)
+		let menuLayer = MenuLayer (color: menuBackgroundColor, size: frame.size)
+		
+		menuLayer.anchorPoint = CGPoint.zero
+		menuLayer.position = CGPoint.zero
+		menuLayer.zPosition = 30
+		menuLayer.name = "menuLayer"
+		menuLayer.display(message: "Game over!", score: score)
+		addChild(menuLayer)
+		
 	}
 	
 	func spawnBricks (atPosition position: CGPoint) -> SKSpriteNode {
@@ -331,6 +366,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 	
     override func update(_ currentTime: TimeInterval) {
 		
+		if gameState != .running {
+			return
+		}
+		
 		scrollSpeed += 0.01
 		
 		var elapsedTime:TimeInterval = 0.0
@@ -357,15 +396,34 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 	
 	@objc func handleTap(tapGesture: UITapGestureRecognizer){
-		if skater.isOnGround {
-			skater.physicsBody?.applyImpulse(CGVector(dx: 0.0, dy: 260.0))
+		
+		if gameState == .running {
+			
+			if skater.isOnGround {
+				skater.physicsBody?.applyImpulse(CGVector(dx: 0.0, dy: 260.0))
+				run(SKAction.playSoundFileNamed("jump.wav", waitForCompletion: false))
+			}
+		} else {
+			if let menuLayer: SKSpriteNode = childNode(withName: "menuLayer") as? SKSpriteNode {
+				menuLayer.removeFromParent()
+			}
+			
+			startGame()
 		}
+		
+		
 		
 	}
 	
 	func didBegin (_ contact: SKPhysicsContact){
 		if contact.bodyA.categoryBitMask == PhysicsCategory.skater &&
 			contact.bodyB.categoryBitMask == PhysicsCategory.brick {
+			
+			if let velocityY = skater.physicsBody?.velocity.dy{
+				if !skater.isOnGround && velocityY < 100.0{
+					skater.createSparks()
+				}
+			}
 			
 			skater.isOnGround = true
 		}
@@ -375,6 +433,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 				
 				score += 10
 				updateScoreLabelText()
+				
+				run(SKAction.playSoundFileNamed("gem.wav", waitForCompletion: false))
 			}
 		}
 	}
