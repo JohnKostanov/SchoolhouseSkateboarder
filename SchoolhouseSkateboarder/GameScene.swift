@@ -203,7 +203,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 	func removeGem (_ gem:SKSpriteNode) {
 		gem.removeFromParent()
 		
-		if let gemIndex = gems.index(of: gem) {
+		if let gemIndex = gems.firstIndex(of: gem) {
 			gems.remove(at: gemIndex)
 		}
 	}
@@ -218,7 +218,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 			if newX < -bricksSize.width{
 				brick.removeFromParent()
 				
-				if let brickIndex = bricks.index(of: brick){
+				if let brickIndex = bricks.firstIndex(of: brick){
 					bricks.remove(at: brickIndex)
 				}
 			} else {
